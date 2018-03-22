@@ -27,16 +27,14 @@ def log_write(line):
 		log.write(line)
 
 def log_message(msg, stdout=False):
-	line = log_format(msg)
-	log_write(line)
-	if stdout:
-		print(line)
-
-def log_format(msg):
 	# discord API only allows one embed per comment
 	embed = f'[{msg.embeds[0].url}]' if msg.embeds else ''
 	attachment = f'[{msg.attachments[0]["url"]}]' if msg.attachments else ''
-	return f'[{msg.timestamp}][{msg.channel}]{attachment}{embed} @{msg.author}: {msg.clean_content}\n'
+	line = f'[{msg.timestamp}][{msg.channel}]{attachment}{embed} @{msg.author}: {msg.clean_content}\n'
+	
+	log_write(line)
+	if stdout:
+		print(line, end='')
 
 def log_member(member, action):
 	date = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
@@ -51,6 +49,7 @@ async def scrape_messages(chronological=True):
 		if str(channel) in CHANNELS_TO_SCRAPE:
 			try:
 				async for message in client.logs_from(channel, limit=1e20, reverse=True):
+					# this may take a lot of memory if you're scraping a big channel
 					messages.append(message) if chronological else log_message(message)
 				print(f'Scraped {channel}')
 			except Exception as e:
@@ -61,6 +60,8 @@ async def scrape_messages(chronological=True):
 		for message in messages:
 			log_message(message)
 
+# empty the log file since we'll be scraping
+open('log.txt', 'w').close()
 client.change_presence(status='invisible')
 client.loop.create_task(scrape_messages())
 with open('token.txt', 'r') as file:
