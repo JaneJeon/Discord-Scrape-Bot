@@ -44,6 +44,8 @@ def log_member(member, action):
 # run once on bot startup
 async def scrape_messages(chronological=True):
 	await client.wait_until_ready()
+	# for some reason, I need to await it for this to actually work
+	await client.change_presence(status=Status.invisible)
 	messages = []
 	
 	for channel in client.get_all_channels():
@@ -63,6 +65,5 @@ async def scrape_messages(chronological=True):
 
 # empty the log file since we'll be scraping
 open('log.txt', 'w').close()
-client.change_presence(status=Status.invisible)
 client.loop.create_task(scrape_messages())
 client.run(Path('token.txt').read_text())
