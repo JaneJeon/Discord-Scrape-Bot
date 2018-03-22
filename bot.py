@@ -1,11 +1,6 @@
-import discord
+from discord import Client
 
-with open('token.txt', 'r') as file:
-	token = file.read()
-
-client = discord.Client()
-
-log = open('log.txt', 'a')
+client = Client()
 
 @client.event
 async def on_ready():
@@ -17,7 +12,8 @@ async def on_message(msg):
 
 def log_message(msg):
 	line = f'[{msg.timestamp}][{msg.channel}] @{msg.author}: {msg.content}'
-	log.write(line)
+	with open('log.txt', 'a') as log:
+		log.write(line+"\n")
 	print(line)
 
 async def scrape_messages():
@@ -30,9 +26,7 @@ async def scrape_messages():
 				log_message(message)
 			print(f'Scraped {channel}')
 
-try:
-	client.change_presence(status='invisible')
-	client.loop.create_task(scrape_messages())
-	client.run(token)
-except KeyboardInterrupt:
-	log.close()
+client.change_presence(status='invisible')
+client.loop.create_task(scrape_messages())
+with open('token.txt', 'r') as file:
+	client.run(file.read())
