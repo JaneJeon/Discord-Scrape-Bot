@@ -11,10 +11,8 @@ async def on_message(msg):
 	log_message(msg)
 
 def log_message(msg):
-	line = f'[{msg.timestamp}][{msg.channel}] @{msg.author}: {msg.content}'
 	with open('log.txt', 'a') as log:
-		log.write(line+"\n")
-	print(line)
+		log.write(f'[{msg.timestamp}][{msg.channel}] @{msg.author}: {msg.clean_content}\n')
 
 async def scrape_messages():
 	await client.wait_until_ready()
@@ -22,9 +20,12 @@ async def scrape_messages():
 	for channel in client.get_all_channels():
 		# replace with channels you want to scrape ▼
 		if str(channel) in ['treehouse', 'another-place-to-talk', 'secret-channel']:
-			async for message in client.logs_from(channel):
-				log_message(message)
-			print(f'Scraped {channel}')
+			try:
+				async for message in client.logs_from(channel, limit=1e20, reverse=True):
+					log_message(message)
+				print(f'Scraped {channel}')
+			except Exception as e:
+				print(e)
 
 client.change_presence(status='invisible')
 client.loop.create_task(scrape_messages())
