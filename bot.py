@@ -1,5 +1,6 @@
 from datetime import datetime
-from discord import Client
+from pathlib import Path
+from discord import Client, Status
 
 # replace with channels you want to scrape
 CHANNELS_TO_SCRAPE = ['treehouse', 'another-place-to-talk', 'secret-channel']
@@ -62,7 +63,6 @@ async def scrape_messages(chronological=True):
 
 # empty the log file since we'll be scraping
 open('log.txt', 'w').close()
-client.change_presence(status='invisible')
+client.change_presence(status=Status.invisible)
 client.loop.create_task(scrape_messages())
-with open('token.txt', 'r') as file:
-	client.run(file.read())
+client.run(Path('token.txt').read_text())
