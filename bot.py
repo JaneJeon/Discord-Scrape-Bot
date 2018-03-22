@@ -1,3 +1,4 @@
+from datetime import datetime
 from discord import Client
 
 # replace with channels you want to scrape
@@ -13,11 +14,21 @@ async def on_ready():
 async def on_message(msg):
 	log_message(msg, True)
 
-def log_message(msg, stdout=False):
-	line = log_format(msg)
-	
+@client.event
+async def on_member_join(member):
+	log_member(member, 'joined')
+
+@client.event
+async def on_member_remove(member):
+	log_member(member, 'left')
+
+def log_write(line):
 	with open('log.txt', 'a') as log:
 		log.write(line)
+
+def log_message(msg, stdout=False):
+	line = log_format(msg)
+	log_write(line)
 	if stdout:
 		print(line)
 
@@ -26,6 +37,10 @@ def log_format(msg):
 	embed = f'[{msg.embeds[0].url}]' if msg.embeds else ''
 	attachment = f'[{msg.attachments[0]["url"]}]' if msg.attachments else ''
 	return f'[{msg.timestamp}][{msg.channel}]{attachment}{embed} @{msg.author}: {msg.clean_content}\n'
+
+def log_member(member, action):
+	date = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+	log_write(f'[{date}] @{member.name} {action}\n')
 
 # run once on bot startup
 async def scrape_messages(chronological=True):
