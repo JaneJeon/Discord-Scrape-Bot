@@ -4,7 +4,6 @@ from pathlib import Path
 from discord import Client, Member, Message, Status
 
 # replace with channels you want to scrape
-CHANNELS_TO_SCRAPE = ['treehouse', 'another-place-to-talk', 'secret-channel', 'pillow-fort', 'nerdiness']
 LOG_FILE = 'discord.log'
 
 client = Client()
@@ -19,11 +18,11 @@ async def on_message(msg):
 
 @client.event
 async def on_member_join(member):
-	log_member(member, 'joined')
+	log_member(member, 'join')
 
 @client.event
 async def on_member_remove(member):
-	log_member(member, 'left')
+	log_member(member, 'leave')
 
 def log_write(line):
 	with open(LOG_FILE, 'a') as log:
@@ -31,7 +30,8 @@ def log_write(line):
 
 def log_message(msg: Message, stdout=False):
 	line = json.dumps({
-		'message': { # better safe than sorry - which is why I'm explicitly casing all the fields to string
+		'message': {
+			# better safe than sorry, so cast all the fields to string
 			'timestamp': str(msg.timestamp),
 			'server': str(msg.server),
 			'channel': str(msg.channel),
@@ -57,26 +57,18 @@ def log_member(member: Member, action: str):
 	log_write(line)
 
 # run once on bot startup
-async def scrape_messages(chronological=True):
+async def scrape_messages():
 	await client.wait_until_ready()
-	# for some reason, I need to await it for this to actually work
 	await client.change_presence(status=Status.invisible)
-	messages = []
 	
 	for channel in client.get_all_channels():
-		if str(channel) in CHANNELS_TO_SCRAPE:
-			try:
-				async for message in client.logs_from(channel, limit=1e20, reverse=True):
-					# this may take a lot of memory if you're scraping a big channel
-					messages.append(message) if chronological else log_message(message)
-				print(f'Scraped {channel}')
-			except Exception as e:
-				print(e)
-	
-	if chronological:
-		messages.sort(key=lambda x: x.timestamp)
-		for message in messages:
-			log_message(message)
+		try:
+			async for message in client.logs_from(channel, limit=1e20):
+				# no need to order the entries if you're going to push into a document store
+				log_message(message)
+			print(f'Scraped {channel}')
+		except Exception as e:
+			print(e)
 
 # empty the log file since we'll be scraping
 open(LOG_FILE, 'w').close()
