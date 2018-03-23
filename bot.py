@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from discord import Client, Member, Message, Status
 
-# replace with channels you want to scrape
 LOG_FILE = 'discord.log'
 
 client = Client()
@@ -29,19 +28,24 @@ def log_write(line):
 		log.write(line)
 
 def log_message(msg: Message, stdout=False):
-	line = json.dumps({
+	log = {
 		'message': {
 			# better safe than sorry, so cast all the fields to string
 			'timestamp': str(msg.timestamp),
 			'server': str(msg.server),
 			'channel': str(msg.channel),
-			'content': str(msg.clean_content),
-			# discord API only allows one attachment/embed per comment
-			'attachment': f'[{msg.attachments[0]["url"]}]' if msg.attachments else '',
-			'embed': f'[{msg.embeds[0]["url"]}]' if msg.embeds else ''
+			'content': str(msg.clean_content)
 		},
 		'user': str(msg.author)
-	}, separators=(',', ':'))+'\n'
+	}
+	
+	# discord API only allows one attachment/embed per comment
+	if msg.attachments:
+		log['message']['attachment'] = str(msg.attachments[0]["url"])
+	if msg.embeds:
+		log['message']['embed'] = str(msg.embeds[0]["url"])
+	
+	line = json.dumps(log, separators=(',', ':'))+'\n'
 	
 	log_write(line)
 	if stdout:
@@ -50,10 +54,12 @@ def log_message(msg: Message, stdout=False):
 def log_member(member: Member, action: str):
 	line = json.dumps({
 		action: {
-			'timestamp': str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+			'timestamp': str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')),
+			'server': str(member.server)
 		},
 		'user': str(member.name)
 	}, separators=(',', ':'))+'\n'
+	
 	log_write(line)
 
 # run once on bot startup
@@ -64,7 +70,7 @@ async def scrape_messages():
 	for channel in client.get_all_channels():
 		try:
 			async for message in client.logs_from(channel, limit=1e20):
-				# no need to order the entries if you're going to push into a document store
+				# no need to order the entries if pushing to a document store
 				log_message(message)
 			print(f'Scraped {channel}')
 		except Exception as e:
