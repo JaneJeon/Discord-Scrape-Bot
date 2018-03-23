@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 from pathlib import Path
-from discord import Client, Status
+from discord import Client, Member, Message, Status
 
 # replace with channels you want to scrape
-CHANNELS_TO_SCRAPE = ['treehouse', 'another-place-to-talk', 'secret-channel']
+CHANNELS_TO_SCRAPE = ['treehouse', 'another-place-to-talk', 'secret-channel', 'pillow-fort', 'nerdiness']
+LOG_FILE = 'discord.log'
 
 client = Client()
 
@@ -24,22 +26,35 @@ async def on_member_remove(member):
 	log_member(member, 'left')
 
 def log_write(line):
-	with open('log.txt', 'a') as log:
+	with open(LOG_FILE, 'a') as log:
 		log.write(line)
 
-def log_message(msg, stdout=False):
-	# discord API only allows one embed per comment
-	embed = f'[{msg.embeds[0].url}]' if msg.embeds else ''
-	attachment = f'[{msg.attachments[0]["url"]}]' if msg.attachments else ''
-	line = f'[{msg.timestamp}][{msg.channel}]{attachment}{embed} @{msg.author}: {msg.clean_content}\n'
+def log_message(msg: Message, stdout=False):
+	line = json.dumps({
+		'message': { # better safe than sorry - which is why I'm explicitly casing all the fields to string
+			'timestamp': str(msg.timestamp),
+			'server': str(msg.server),
+			'channel': str(msg.channel),
+			'content': str(msg.clean_content),
+			# discord API only allows one attachment/embed per comment
+			'attachment': f'[{msg.attachments[0]["url"]}]' if msg.attachments else '',
+			'embed': f'[{msg.embeds[0]["url"]}]' if msg.embeds else ''
+		},
+		'user': str(msg.author)
+	}, separators=(',', ':'))+'\n'
 	
 	log_write(line)
 	if stdout:
 		print(line, end='')
 
-def log_member(member, action):
-	date = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-	log_write(f'[{date}] @{member.name} {action}\n')
+def log_member(member: Member, action: str):
+	line = json.dumps({
+		action: {
+			'timestamp': str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+		},
+		'user': str(member.name)
+	}, separators=(',', ':'))+'\n'
+	log_write(line)
 
 # run once on bot startup
 async def scrape_messages(chronological=True):
@@ -64,6 +79,6 @@ async def scrape_messages(chronological=True):
 			log_message(message)
 
 # empty the log file since we'll be scraping
-open('log.txt', 'w').close()
+open(LOG_FILE, 'w').close()
 client.loop.create_task(scrape_messages())
 client.run(Path('token.txt').read_text())
