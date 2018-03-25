@@ -1,0 +1,1 @@
+# pushes the JSON-ified log to elasticsearch for analysis
