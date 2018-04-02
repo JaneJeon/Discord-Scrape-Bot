@@ -41,15 +41,7 @@ async def on_channel_delete(channel):
 	log_channel(channel, 'channel_delete', now())
 
 def log_message(msg: Message, stdout=False):
-	log = base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author)
-	log['message'] = {
-		'content': str(msg.clean_content),
-		'attachment': msg.attachments,
-		'embed': msg.embeds,
-		'mentions': msg.raw_mentions,
-		'everyone': msg.mention_everyone
-	}
-	line = flatten(log)
+	line = flatten(base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
 	
 	write(line)
 	if stdout:
@@ -61,21 +53,32 @@ def log_member(member: Member, action: str):
 def log_channel(channel: Channel, action: str, timestamp):
 	write(flatten(base_log(action, channel.server, timestamp, channel=channel)))
 
-def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None):
+def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
 	log = {
 		'action': action,
 		'timestamp': str(timestamp),
 		'server': str(server)
 	}
+	
 	if channel is not None:
 		log['channel'] = {
 			'name': channel.name,
 			'private': channel.is_private
 		}
+	
 	if user is not None:
 		log['user'] = {
 			'name': user.name,
 			'id': user.id
+		}
+	
+	if msg is not None:
+		log['message'] = {
+			'content': str(msg.clean_content),
+			'attachment': msg.attachments,
+			'embed': msg.embeds,
+			'mentions': msg.raw_mentions,
+			'everyone': msg.mention_everyone
 		}
 	
 	return log
