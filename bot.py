@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from json import dumps
 from datetime import datetime
 from pathlib import Path
-from discord import Client, Member, Message, Status
+from discord import Channel, Client, Member, Message, Status, User
 
 LOG_FILE = 'discord.log'
 
@@ -24,50 +24,80 @@ async def on_member_join(member):
 async def on_member_remove(member):
 	log_member(member, 'leave')
 
-def log_write(line):
-	with open(LOG_FILE, 'a') as log:
-		log.write(line)
+@client.event
+async def on_member_ban(member):
+	log_member(member, 'ban')
+
+@client.event
+async def on_member_unban(member):
+	log_member(member, 'unban')
+
+@client.event
+async def on_channel_create(channel):
+	log_channel(channel, 'channel_create', channel.created_at)
+
+@client.event
+async def on_channel_delete(channel):
+	log_channel(channel, 'channel_delete', now())
 
 def log_message(msg: Message, stdout=False):
-	log = {
-		'message': {
-			# better safe than sorry, so cast all the fields to string
-			'timestamp': str(msg.timestamp),
-			'server': str(msg.server),
-			'channel': str(msg.channel),
-			'content': str(msg.clean_content)
-		},
-		'user': str(msg.author)
+	log = base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author)
+	log['message'] = {
+		'content': str(msg.clean_content),
+		'attachment': msg.attachments,
+		'embed': msg.embeds,
+		'mentions': msg.raw_mentions,
+		'everyone': msg.mention_everyone
 	}
+	line = flatten(log)
 	
-	# discord API only allows one attachment/embed per comment
-	if msg.attachments:
-		log['message']['attachment'] = str(msg.attachments[0]['url'])
-	if msg.embeds:
-		log['message']['embed'] = str(msg.embeds[0]['url'])
-	
-	line = dumps(log, separators=(',', ':'))+'\n'
-	
-	log_write(line)
+	write(line)
 	if stdout:
 		print(line, end='')
 
 def log_member(member: Member, action: str):
-	line = dumps({
-		action: {
-			'timestamp': str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000')),
-			'server': str(member.server)
-		},
-		'user': str(member.name)
-	}, separators=(',', ':'))+'\n'
-	
-	log_write(line)
+	write(flatten(base_log(action, member.server, timestamp=now(), user=member)))
 
+def log_channel(channel: Channel, action: str, timestamp):
+	write(flatten(base_log(action, channel.server, timestamp, channel=channel)))
+
+def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None):
+	log = {
+		'action': action,
+		'timestamp': str(timestamp),
+		'server': str(server)
+	}
+	if channel is not None:
+		log['channel'] = {
+			'name': channel.name,
+			'private': channel.is_private
+		}
+	if user is not None:
+		log['user'] = {
+			'name': user.name,
+			'id': user.id
+		}
+	
+	return log
+
+def flatten(log):
+	return dumps(log, separators=(',', ':'))+'\n'
+
+def write(line):
+	with open(LOG_FILE, 'a') as log:
+		log.write(line)
+
+# the reason I removed this as the default timestamp and instead extracted it into its own function
+# is that if I happen to add methods other than log_member later that doesn't have an accurate timestamp,
+# I want that dependency to be explicitly stated on function call so that I can merge it properly
+def now():
+	return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000')
+
+# ▼ these two methods run once on bot startup ▼
 async def go_invis():
-	await client.wait_until_login()
+	await client.wait_until_ready()
 	await client.change_presence(status=Status.invisible)
 
-# run once on bot startup
 async def scrape_messages():
 	await client.wait_until_ready()
 	
@@ -78,7 +108,9 @@ async def scrape_messages():
 				log_message(message)
 			print(f'Scraped {channel}')
 		except Exception as e:
-			print(e)
+			print(f'Error scraping {channel}: {e}')
+	
+	print('Finished scraping messages')
 
 # append mode doesn't destroy existing log
 parser = ArgumentParser()
