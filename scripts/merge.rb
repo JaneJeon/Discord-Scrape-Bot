@@ -41,7 +41,7 @@ ARGV.each do |log|
         lines[timestamp] = line
       end :
       lines[timestamp] = line
-    end
+  end
 end
 
 `> #{output}`
