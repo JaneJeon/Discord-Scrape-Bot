@@ -39,6 +39,14 @@ async def on_channel_create(channel):
 async def on_channel_delete(channel):
 	log_channel(channel, 'channel_delete', now())
 
+@client.event
+async def on_group_join(channel, user):
+	log_channel_member(channel, user, 'group_join')
+
+@client.event
+async def on_group_remove(channel, user):
+	log_channel_member(channel, user, 'group_remove')
+
 # ▼ these two methods run once on bot startup ▼
 async def go_invis():
 	await client.wait_until_ready()
@@ -60,20 +68,23 @@ async def scrape_messages():
 
 
 def log_message(msg: Message, stdout=False):
-	line = flatten(base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
+	line = flatten(event_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
 	
 	write(line)
 	if stdout:
 		print(line, end='')
 
 def log_member(member: Member, action: str):
-	write(flatten(base_log(action, member.server, timestamp=now(), user=member)))
+	write(flatten(event_log(action, member.server, now(), user=member)))
 
 def log_channel(channel: Channel, action: str, timestamp):
-	write(flatten(base_log(action, channel.server, timestamp, channel=channel)))
+	write(flatten(event_log(action, channel.server, timestamp, channel=channel)))
+
+def log_channel_member(channel: Channel, user: User, action: str):
+	write(flatten(event_log(action, channel.server, now(), user=user)))
 
 
-def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
+def event_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
 	log = {
 		'action': action,
 		'timestamp': str(timestamp),
