@@ -1,4 +1,4 @@
-OPTION = ENV['OPTION']
+OPTION = ENV['OPTION'] || ''
 REMOTE = ENV['REMOTE']
 
 def count

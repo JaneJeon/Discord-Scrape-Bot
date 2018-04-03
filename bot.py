@@ -3,7 +3,7 @@ from datetime import datetime
 from io import open
 from json import dumps
 from pathlib import Path
-from discord import Channel, Client, Member, Message, Status, User
+from discord import Channel, Client, Message, Status, User
 
 client = Client()
 
@@ -13,39 +13,39 @@ async def on_ready():
 
 @client.event
 async def on_message(msg):
-	log_message(msg, True)
+	log_event('message', msg.server, msg.timestamp, msg.channel, msg.author, msg)
 
 @client.event
 async def on_member_join(member):
-	log_member(member, 'join')
+	log_event('join', member.server, user=member)
 
 @client.event
 async def on_member_remove(member):
-	log_member(member, 'leave')
+	log_event('leave', member.server, user=member)
 
 @client.event
 async def on_member_ban(member):
-	log_member(member, 'ban')
+	log_event('ban', member.server, user=member)
 
 @client.event
 async def on_member_unban(member):
-	log_member(member, 'unban')
+	log_event('unban', member.server, user=member)
 
 @client.event
 async def on_channel_create(channel):
-	log_channel(channel, 'channel_create', channel.created_at)
+	log_event('channel_create', channel.server, channel.created_at, channel)
 
 @client.event
 async def on_channel_delete(channel):
-	log_channel(channel, 'channel_delete', now())
+	log_event('channel_delete', channel.server, channel=channel)
 
 @client.event
 async def on_group_join(channel, user):
-	log_channel_member(channel, user, 'group_join')
+	log_event('group_join', channel.server, channel=channel, user=user)
 
 @client.event
 async def on_group_remove(channel, user):
-	log_channel_member(channel, user, 'group_remove')
+	log_event('group_remove', channel.server, channel=channel, user=user)
 
 # ▼ these two methods run once on bot startup ▼
 async def go_invis():
@@ -57,9 +57,9 @@ async def scrape_messages():
 	
 	for channel in client.get_all_channels():
 		try:
-			async for message in client.logs_from(channel, limit=1e20):
+			async for msg in client.logs_from(channel, limit=1e20):
 				# no need to order the entries if pushing to a document store
-				log_message(message)
+				log_event('message', msg.server, msg.timestamp, msg.channel, msg.author, msg, stdout=False)
 			print(f'Scraped {channel}')
 		except Exception as e:
 			print(f'Error scraping {channel}: {e}')
@@ -67,24 +67,15 @@ async def scrape_messages():
 	print('Finished scraping messages')
 
 
-def log_message(msg: Message, stdout=False):
-	line = flatten(event_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
+def log_event(action: str, server, timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000'), 
+              channel=None, user=None, msg=None, stdout=True):
+	line = flatten(event(action, server, timestamp, channel, user, msg))
 	
 	write(line)
 	if stdout:
 		print(line, end='')
 
-def log_member(member: Member, action: str):
-	write(flatten(event_log(action, member.server, now(), user=member)))
-
-def log_channel(channel: Channel, action: str, timestamp):
-	write(flatten(event_log(action, channel.server, timestamp, channel=channel)))
-
-def log_channel_member(channel: Channel, user: User, action: str):
-	write(flatten(event_log(action, channel.server, now(), user=user)))
-
-
-def event_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
+def event(action: str, server, timestamp, channel:Channel, user:User, msg:Message):
 	log = {
 		'action': action,
 		'timestamp': str(timestamp),
@@ -120,9 +111,6 @@ def flatten(log):
 def write(line):
 	with open(LOG_FILE, 'a', encoding='utf8') as log:
 		log.write(line)
-
-def now():
-	return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000')
 
 
 parser = ArgumentParser()
