@@ -33,7 +33,13 @@ ARGV.each do |log|
   total += count log
 
   `cat #{log}`.split("\n").each do |line|
-    lines[JSON.parse(line)['timestamp']] = line
+	timestamp = JSON.parse(line)['timestamp']
+	(lines.key? timestamp) ?
+	  if line.length > lines[timestamp].length
+	    puts "Replacing\n#{lines[timestamp]}\nwith\n#{line}"
+		lines[timestamp] = line
+	  end :
+	  lines[timestamp] = line
   end
 end
 

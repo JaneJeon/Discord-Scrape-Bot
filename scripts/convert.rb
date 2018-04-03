@@ -102,7 +102,7 @@ ARGV.each do |logfile|
 
   File.foreach(logfile, "\n") do |line|
     log = JSON.parse line
-    newline = log.key?('message') ? Convert.message(log) : Convert.member(log)
+    newline = (log.key? 'message') ? Convert.message(log) : Convert.member(log)
     IO.write(newfile, JSON.dump(newline)+"\n", mode: 'a')
   end
 end
