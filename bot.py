@@ -5,8 +5,6 @@ from json import dumps
 from pathlib import Path
 from discord import Channel, Client, Member, Message, Status, User
 
-LOG_FILE = 'discord.log'
-
 client = Client()
 
 @client.event
@@ -41,62 +39,6 @@ async def on_channel_create(channel):
 async def on_channel_delete(channel):
 	log_channel(channel, 'channel_delete', now())
 
-def log_message(msg: Message, stdout=False):
-	line = flatten(base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
-	
-	write(line)
-	if stdout:
-		print(line, end='')
-
-def log_member(member: Member, action: str):
-	write(flatten(base_log(action, member.server, timestamp=now(), user=member)))
-
-def log_channel(channel: Channel, action: str, timestamp):
-	write(flatten(base_log(action, channel.server, timestamp, channel=channel)))
-
-def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
-	log = {
-		'action': action,
-		'timestamp': str(timestamp),
-		'server': str(server)
-	}
-	
-	if channel is not None:
-		log['channel'] = {
-			'name': channel.name,
-			'private': channel.is_private
-		}
-	
-	if user is not None:
-		log['user'] = {
-			'name': str(user),
-			'id': user.id
-		}
-	
-	if msg is not None:
-		log['message'] = {
-			'content': str(msg.clean_content),
-			'attachments': msg.attachments,
-			'embeds': msg.embeds,
-			'mentions': msg.raw_mentions,
-			'everyone': msg.mention_everyone
-		}
-	
-	return log
-
-def flatten(log):
-	return dumps(log, separators=(',', ':'), ensure_ascii=False)+'\n'
-
-def write(line):
-	with open(LOG_FILE, 'a', encoding='utf8') as log:
-		log.write(line)
-
-# the reason I removed this as the default timestamp and instead extracted it into its own function
-# is that if I happen to add methods other than log_member later that doesn't have an accurate timestamp,
-# I want that dependency to be explicitly stated on function call so that I can merge it properly
-def now():
-	return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000')
-
 # ▼ these two methods run once on bot startup ▼
 async def go_invis():
 	await client.wait_until_ready()
@@ -116,15 +58,74 @@ async def scrape_messages():
 	
 	print('Finished scraping messages')
 
-# append mode doesn't destroy existing log
+
+def log_message(msg: Message, stdout=False):
+	line = flatten(base_log('message', msg.server, msg.timestamp, channel=msg.channel, user=msg.author, msg=msg))
+	
+	write(line)
+	if stdout:
+		print(line, end='')
+
+def log_member(member: Member, action: str):
+	write(flatten(base_log(action, member.server, timestamp=now(), user=member)))
+
+def log_channel(channel: Channel, action: str, timestamp):
+	write(flatten(base_log(action, channel.server, timestamp, channel=channel)))
+
+
+def base_log(action: str, server, timestamp, channel:Channel=None, user:User=None, msg:Message=None):
+	log = {
+		'action': action,
+		'timestamp': str(timestamp),
+		'server': str(server)
+	}
+	
+	if channel:
+		log['channel'] = {
+			'name': channel.name,
+			'private': channel.is_private
+		}
+	
+	if user:
+		log['user'] = {
+			'name': str(user),
+			'id': user.id
+		}
+	
+	if msg:
+		log['message'] = {
+			'content': str(msg.clean_content),
+			'attachments': msg.attachments,
+			'embeds': msg.embeds,
+			'mentions': msg.raw_mentions,
+			'everyone': msg.mention_everyone
+		}
+	
+	return log
+
+def flatten(log):
+	return dumps(log, separators=(',', ':'), ensure_ascii=False)+'\n'
+
+def write(line):
+	with open(LOG_FILE, 'a', encoding='utf8') as log:
+		log.write(line)
+
+def now():
+	return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.000000')
+
+
 parser = ArgumentParser()
-parser.add_argument('-a', action='store_true')
+parser.add_argument('-a', '--append', action='store_true', help="Preserve existing log and skip scraping")
+parser.add_argument('-f', '--file', default='logs/discord.log', help="Specify logfile")
+parser.add_argument('-t', '--token', default=None, help="Pass token in as a string")
+result = parser.parse_args()
 
-client.loop.create_task(go_invis())
+LOG_FILE = result.f
 
-if not parser.parse_args().a:
-	# empty the log file since we'll be scraping
+if not result.a:
+	# empty the log file
 	open(LOG_FILE, 'w').close()
 	client.loop.create_task(scrape_messages())
 
-client.run(Path('token.txt').read_text())
+client.loop.create_task(go_invis())
+client.run(result.t if result.t else Path('token.txt').read_text())
