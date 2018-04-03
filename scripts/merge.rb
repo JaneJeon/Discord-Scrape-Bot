@@ -10,9 +10,18 @@
 # To get around that, we need to compare items from different logs using a primary key, not the whole line.
 # That way, duplicate items in different logs will be recognized as the same item, despite having different lines.
 require 'json'
+require 'optparse'
+
+output = 'merged.log'
+
+OptionParser.new do |opts|
+  opts.on('-o OUTPUT') do |file|
+    output = file
+  end
+end.parse!
 
 def count(log)
-  `cat #{log} | wc -l`.gsub(/\D/, '').to_i
+  `cat #{log} | wc -l | awk '{print $1}'`.to_i
 end
 
 exit if ARGV.length < 2
@@ -28,11 +37,11 @@ ARGV.each do |log|
   end
 end
 
-`> merged.log`
-File.open('merged.log', 'a') do |file|
+`> #{output}`
+File.open(output, 'a') do |file|
   lines.each_value do |line|
     file.puts line
   end
 end
 
-puts "#{count 'merged.log'} unique lines of total #{total}"
+puts "#{count output} unique lines of total #{total}"
