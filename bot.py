@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
-from json import dumps
 from datetime import datetime
+from io import open
+from json import dumps
 from pathlib import Path
 from discord import Channel, Client, Member, Message, Status, User
 
@@ -68,15 +69,15 @@ def base_log(action: str, server, timestamp, channel:Channel=None, user:User=Non
 	
 	if user is not None:
 		log['user'] = {
-			'name': user.name,
+			'name': str(user),
 			'id': user.id
 		}
 	
 	if msg is not None:
 		log['message'] = {
 			'content': str(msg.clean_content),
-			'attachment': msg.attachments,
-			'embed': msg.embeds,
+			'attachments': msg.attachments,
+			'embeds': msg.embeds,
 			'mentions': msg.raw_mentions,
 			'everyone': msg.mention_everyone
 		}
@@ -84,10 +85,10 @@ def base_log(action: str, server, timestamp, channel:Channel=None, user:User=Non
 	return log
 
 def flatten(log):
-	return dumps(log, separators=(',', ':'))+'\n'
+	return dumps(log, separators=(',', ':'), ensure_ascii=False)+'\n'
 
 def write(line):
-	with open(LOG_FILE, 'a') as log:
+	with open(LOG_FILE, 'a', encoding='utf8') as log:
 		log.write(line)
 
 # the reason I removed this as the default timestamp and instead extracted it into its own function
