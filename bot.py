@@ -91,7 +91,8 @@ def event(action: str, server, timestamp, channel:Channel, user:User, msg:Messag
 	if user:
 		log['user'] = {
 			'name': str(user),
-			'id': user.id
+			'id': user.id,
+			'nickname': user.display_name
 		}
 	
 	if msg:
@@ -114,9 +115,9 @@ def write(line):
 
 
 parser = ArgumentParser()
-parser.add_argument('-a', '--append', action='store_true', help="Preserve existing log and skip scraping")
-parser.add_argument('-f', '--file', default='logs/discord.log', help="Specify logfile")
-parser.add_argument('-t', '--token', default=None, help="Pass token in as a string")
+parser.add_argument('-a', action='store_true', help="Preserve existing log and skip scraping")
+parser.add_argument('-f', default='logs/discord.log', help="Specify logfile")
+parser.add_argument('-t', default=None, help="Pass token in as a string")
 result = parser.parse_args()
 
 LOG_FILE = result.f

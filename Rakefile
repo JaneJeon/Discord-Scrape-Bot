@@ -17,7 +17,7 @@ task :merge => :pull do
   puts "#{count - lines} new lines since last pull"
 end
 
-desc 'Update the log in server'
+desc 'Update the log up on the server'
 task :update => :merge do
   `scp #{OPTION} logs/discord.log #{REMOTE}:~`
 end
