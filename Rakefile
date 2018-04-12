@@ -13,8 +13,10 @@ end
 desc 'Merge the new log with the pre-kick log'
 task :merge => :pull do
   lines = count
-  `ruby scripts/merge.rb logs/fixed-original.log ~/Desktop/discord.log -o logs/discord.log`
+  `ruby scripts/merge.rb logs/fixed-original.log logs/discord.log ~/Desktop/discord.log -o logs/discord.log`
   puts "#{count - lines} new lines since last pull"
+  `mongo discord --eval "db.log.remove({}); db.log.reIndex()"`
+  `mongoimport -d discord -c log ~/documents/projects/scrapebot/logs/discord.log`
 end
 
 desc 'Update the log up on the server'
