@@ -20,35 +20,29 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-def count(log)
-  `cat #{log} | wc -l | awk '{print $1}'`.to_i
-end
-
 exit if ARGV.length < 2
 
 total = 0
 lines = {}
 
 ARGV.each do |log|
-  total += count log
-
   `cat #{log}`.split("\n").each do |line|
-    timestamp = JSON.parse(line)['timestamp']
+    entry = JSON.parse(line)
+    user = (entry.key? 'user') ? entry['user']['name'] : 'NONE'
+    key = entry['timestamp'] + entry['action'] + user
     
-    (lines.key? timestamp) ?
-      if line.length > lines[timestamp].length
-        puts "Replacing\n#{lines[timestamp]}\nwith\n#{line}"
-        lines[timestamp] = line
-      end :
-      lines[timestamp] = line
+    if !lines.key? key
+      lines[key] = line
+    elsif line.length > lines[key].length
+      puts "Replacing\n#{lines[key]}\nwith\n#{line}"
+      lines[key] = line
+    end
   end
 end
 
 `> #{output}`
 File.open(output, 'a') do |file|
-  lines.each_value do |line|
+  lines.sort_by(&:last).each do |_, line|
     file.puts line
   end
 end
-
-puts "#{count output} unique lines of total #{total}"
